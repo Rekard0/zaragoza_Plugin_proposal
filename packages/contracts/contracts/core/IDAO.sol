@@ -15,7 +15,7 @@ abstract contract IDAO {
         bytes data; // FuncSig + arguments
     }
 
-    struct DAOPlugin {
+    struct DAOsPlugin {
         bytes32 node;
         uint16[3] semanticVersion;
     }
@@ -42,11 +42,14 @@ abstract contract IDAO {
     /// @param metadata The IPFS hash of the new metadata object
     event MetadataSet(bytes metadata);
 
-    function setPlugin(DAOPlugin memory _daoPlugin, address _proxyAddress) external virtual;
+    function setPlugin(DAOsPlugin memory _daoPlugin, address _proxyAddress) external virtual;
 
-    function getPluginAddress(bytes32 _pluginHash) external virtual returns (address);
+    function getPluginAddress(bytes32 _pluginHash, uint256 _count)
+        external
+        virtual
+        returns (address);
 
-    event PluginSet(address proxyAddress, DAOPlugin daoPlugin);
+    event PluginSet(address proxyAddress, DAOsPlugin daoPlugin);
 
     /// @notice Executes a list of actions
     /// @dev It runs a loop through the array of actions and executes them one by one.

@@ -35,7 +35,8 @@ contract DAO is IDAO, Initializable, UUPSUpgradeable, ACL, ERC1271, AdaptiveERC1
 
     address private _trustedForwarder;
 
-    mapping(bytes32 => address) internal installedPlugins; // keccak256({node, version}) => proxyAddress
+    mapping(bytes32 => uint256) internal installedPluginsCount; // keccak256({node, version}) => count
+    mapping(bytes32 => mapping(uint256 => address)) internal installedPlugins; // keccak256({node, version}) => proxyAddress
 
     /// @notice Thrown if action execution has failed
     error ActionFailed();
@@ -107,7 +108,7 @@ contract DAO is IDAO, Initializable, UUPSUpgradeable, ACL, ERC1271, AdaptiveERC1
         _setMetadata(_metadata);
     }
 
-    function setPlugin(DAOPlugin memory _daoPlugin, address _proxyAddress)
+    function setPlugin(DAOsPlugin memory _daoPlugin, address _proxyAddress)
         external
         override
         auth(address(this), DAO_SET_PLUGIN_ROLE)
@@ -116,13 +117,19 @@ contract DAO is IDAO, Initializable, UUPSUpgradeable, ACL, ERC1271, AdaptiveERC1
             abi.encodePacked(_daoPlugin.node, _daoPlugin.semanticVersion)
         );
 
-        installedPlugins[pluginHash] = _proxyAddress;
+        uint256 count = installedPluginsCount[pluginHash] + 1;
+        installedPluginsCount[pluginHash] = count;
+        installedPlugins[pluginHash][count] = _proxyAddress;
 
         emit PluginSet(_proxyAddress, _daoPlugin);
     }
 
-    function getPluginAddress(bytes32 _pluginHash) external override returns (address) {
-        return installedPlugins[_pluginHash];
+    function getPluginAddress(bytes32 _pluginHash, uint256 _count)
+        external
+        override
+        returns (address)
+    {
+        return installedPlugins[_pluginHash][_count];
     }
 
     /// @inheritdoc IDAO

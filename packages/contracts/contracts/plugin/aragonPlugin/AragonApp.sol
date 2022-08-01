@@ -15,17 +15,6 @@ import "./AppStorage.sol";
 abstract contract AragonApp is AppStorage, UUPSUpgradeable, ContextUpgradeable {
     bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
 
-    struct Dependency {
-        string id;
-        uint16[3] version;
-    }
-
-    struct Permissions {
-        Dependency from;
-        Dependency to;
-        string role;
-    }
-
     error CantUpdate();
 
     /// @dev Auth modifier used in all components of a DAO to check the permissions.
@@ -77,10 +66,6 @@ abstract contract AragonApp is AppStorage, UUPSUpgradeable, ContextUpgradeable {
     /// @dev This is for the front-end to detect what arguments it needs to provide to the update function.
     /// TODO: if the we make `_update` reinforced, then we also do this as reinforced
     function updateSignatureABI() external view virtual returns (string memory) {}
-
-    function getDependencies() external virtual returns (IDAO.DAOPlugin[] memory) {}
-
-    function getPermissions() external virtual returns (Permissions[] memory) {}
 
     /**
      * @dev Upgrade the implementation of the proxy to `newImplementation`, and subsequently execute the function call

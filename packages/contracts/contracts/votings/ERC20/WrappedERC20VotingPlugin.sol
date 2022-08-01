@@ -13,20 +13,17 @@ contract WrappedERC20VotingPlugin is AragonApp, ERC20Voting {
         uint64 _participationRequiredPct,
         uint64 _supportRequiredPct,
         uint64 _minDuration,
-        IDAO.DAOPlugin memory _tokenPlugin
+        IDAO.DAOsPlugin memory _tokenPlugin,
+        uint256 _pluginCount
     ) public initializer {
-        // get dao from the dao slot
+        // get dao from the DAO slot
         IDAO dao = dao();
 
         // get dependecy from dao's installed plugins
         address _token = dao.getPluginAddress(
-            keccak256(abi.encodePacked(_tokenPlugin.node, _tokenPlugin.semanticVersion))
+            keccak256(abi.encodePacked(_tokenPlugin.node, _tokenPlugin.semanticVersion)),
+            _pluginCount
         );
-
-        // check if token or it's version is valid,
-        // or any other related thing that is important for this plugin is valid
-
-        // require(checkTokenDep(), "token not valid");
 
         __ERC20Voting_init(
             dao,
@@ -36,20 +33,6 @@ contract WrappedERC20VotingPlugin is AragonApp, ERC20Voting {
             _minDuration,
             ERC20VotesUpgradeable(_token)
         );
-    }
-
-    function getDependencies() external returns (IDAO.DAOPlugin[] memory) {
-        IDAO.DAOPlugin[] memory deps = new IDAO.DAOPlugin[](2);
-
-        uint16[3] memory version;
-        version[0] = 1;
-        version[1] = 0;
-        version[2] = 0;
-
-        deps[0] = IDAO.DAOPlugin(keccak256("minter.aragon.eth"), version); // minter.aragon.eth
-        deps[1] = IDAO.DAOPlugin(keccak256("token.aragon.eth"), version); // token.aragon.eth
-
-        return deps;
     }
 
     function changeVoteConfig(

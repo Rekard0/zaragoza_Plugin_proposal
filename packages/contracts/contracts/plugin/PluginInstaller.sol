@@ -22,9 +22,8 @@ contract PluginInstaller {
     ENS public ens;
 
     struct PluginConfig {
-        DAO.DAOPlugin daoPlugin;
-        bytes32[] pluginPermissions; // Plugin permissions to be granted to DAO
-        bytes32[] daoPermissions; // Dao permission to be granted to the plugin, such as: exec_role
+        DAO.DAOsPlugin daoPlugin;
+        uint256[] pluginDepCount;
         bytes initCallData;
     }
 
@@ -55,58 +54,80 @@ contract PluginInstaller {
         internal
         returns (address pluginAddress)
     {
+        // prepare repo
         bytes32 node = pluginConfig.daoPlugin.node;
         Resolver resolver = Resolver(ens.resolver(node));
         PluginRepo repo = PluginRepo(resolver.addr(node));
-        (, address implementationAddress, ) = repo.getBySemanticVersion(
-            pluginConfig.daoPlugin.semanticVersion
-        );
 
+        // get permissions and implementationAddress
+        (, PluginRepo.Permission[] permissions, , address implementationAddress, , ) = repo
+            .getBySemanticVersion(pluginConfig.daoPlugin.semanticVersion);
+
+        // deploy plugin
         address pluginAddress = payable(
             address(
                 new PluginUUPSProxy(address(dao), implementationAddress, pluginConfig.initCallData)
             )
         );
 
-        // option 2 if we get permission back from the deployed plugin
-        AragonApp installedPlugin = AragonApp(pluginAddress);
+        // handle permissions
+        ACLData.BulkItem[] memory permissionItems = new ACLData.BulkItem[](permissions.length);
 
-        AragonApp.Permissions memory permissions = installedPlugin.getPermissions();
         for (uint256 i = 0; i < permissions.length; i++) {
-            // convert deps and permissions
-            // ....
-            // handle permissions
-            // ....
-        }
+            // re-construct permissions
+            PluginRepo.Dependency memory fromDep = permissions[i].from;
+            PluginRepo.Dependency memory toDep = permissions[i].to;
+            bytes role = keccak256(permissions[i].role);
 
-        // option 1 if permission is passed from UI and known manifestJson
+            // get address of deps from dao
+            address fromAddress = convertDepToAddress(
+                address(dao),
+                fromDep.id,
+                fromDep.version,
+                pluginConfig.pluginCount[i]
+            );
 
-        // Grant dao the necessary permissions on the plugin
-        ACLData.BulkItem[] memory packageItems = new ACLData.BulkItem[](
-            pluginConfig.pluginPermissions.length
-        );
-        for (uint256 i; i < pluginConfig.pluginPermissions.length; i = _uncheckedIncrement(i)) {
-            packageItems[i] = ACLData.BulkItem(
+            address toAddress = convertDepToAddress(
+                address(dao),
+                toDep.id,
+                toDep.version,
+                pluginConfig.pluginCount[i]
+            );
+
+            // prepare permissions
+            permissionItems[i] = ACLData.BulkItem(
                 ACLData.BulkOp.Grant,
-                pluginConfig.pluginPermissions[i],
-                address(dao)
+                fromAddress,
+                toAddress,
+                role
             );
         }
-        dao.bulk(pluginAddress, packageItems);
 
-        // Grant plugin the necessary permissions on the DAO
-        ACLData.BulkItem[] memory daoItems = new ACLData.BulkItem[](
-            pluginConfig.daoPermissions.length
-        );
-        for (uint256 i; i < pluginConfig.daoPermissions.length; i = _uncheckedIncrement(i)) {
-            daoItems[i] = ACLData.BulkItem(
-                ACLData.BulkOp.Grant,
-                pluginConfig.daoPermissions[i],
-                pluginAddress
-            );
-        }
-        dao.bulk(address(dao), daoItems);
+        // call to set permission
+        dao.bulk(permissionItems);
 
+        // register plugin as installed on the DAO
         dao.setPlugin(pluginConfig.daoPlugin, pluginAddress);
+    }
+
+    function convertDepToAddress(
+        address _dao,
+        string _id,
+        uint16[3] _version,
+        uint256 _count
+    ) internal returns (address addr) {
+        uint16[3] memory zeroZersion;
+        version[0] = 0;
+        version[1] = 0;
+        version[2] = 0;
+
+        if (_id == "" && _version == zeroZersion) {
+            addr = _dao;
+            return;
+        }
+        addr = dao.getPluginAddress(
+            keccak256(abi.encodePacked(keccak256(fromDep.id), fromDep.version)),
+            pluginConfig.pluginCount
+        );
     }
 }

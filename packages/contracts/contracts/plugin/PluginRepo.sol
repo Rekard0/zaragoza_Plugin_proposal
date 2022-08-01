@@ -43,11 +43,41 @@ contract PluginRepo is IPluginRepo, Initializable, UUPSUpgradeable, ACL, Adaptiv
     /// @param implementationAddress The address of the contract
     error InvalidContractAddress(address implementationAddress);
 
+    struct Dependency {
+        string id;
+        uint16[3] version;
+    }
+
+    struct Permission {
+        Dependency from;
+        Dependency to;
+        string role;
+    }
+
+    /**
+    Example of Deps and permissions:
+        deps [
+            ("minter.aragon.eth", [1,0,0]),
+            ("token.aragon.eth", [1.2.0])
+        ]
+
+        Permissions [
+            // permissions between plugin & helper-plugin
+            (  ("token.aragon.eth", [1.2.0]), ("minter.aragon.eth", [1,0,0]), "MINT_ROLE"  ),
+
+            // permissions between plugin & DAO
+            (  ("token.aragon.eth", [1,0,0]), ("", [0.0.0]), "MINT_ROLE"  ),    // ("", [0.0.0]) = DAO
+        ]
+
+     */
     struct Version {
+        Dependency[] deps;
+        Permission[] permissions;
         uint16[3] semanticVersion;
         address implementationAddress;
         bytes contentURI;
         bool redFlaged;
+        // bool verified;
     }
 
     uint256 internal nextVersionIndex;
@@ -78,6 +108,8 @@ contract PluginRepo is IPluginRepo, Initializable, UUPSUpgradeable, ACL, Adaptiv
 
     /// @inheritdoc IPluginRepo
     function newVersion(
+        Dependency[] calldata _deps,
+        Permissions[] calldata _permissions,
         uint16[3] memory _newSemanticVersion,
         address _implementationAddress,
         bytes calldata _contentURI
@@ -142,6 +174,8 @@ contract PluginRepo is IPluginRepo, Initializable, UUPSUpgradeable, ACL, Adaptiv
         uint256 versionIdx = nextVersionIndex;
         nextVersionIndex = _uncheckedIncrement(nextVersionIndex);
         versions[versionIdx] = Version(
+            _deps,
+            _permissions
             _newSemanticVersion,
             _implementationAddress,
             _contentURI,
